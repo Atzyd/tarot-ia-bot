@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
-// 1. Configuración del Cliente
+// 1. Configuración del Cliente de Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -13,33 +13,33 @@ const client = new Client({
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 
-// 2. Diccionario de Cartas
+// 2. Diccionario de Arcanos Mayores
 const cartasTarot = [
-    { nombre: "El Loco", significado: "Nuevos comienzos, optimismo, confianza en el universo." },
-    { nombre: "El Mago", significado: "Manifestación, recursos, poder personal." },
-    { nombre: "La Sacerdotisa", significado: "Intuición, misterio, subconsciente." },
-    { nombre: "La Emperatriz", significado: "Feminidad, belleza, naturaleza, abundancia." },
-    { nombre: "El Emperador", significado: "Autoridad, estructura, base sólida." },
-    { nombre: "El Hierofante", significado: "Tradición, conformidad, sabiduría espiritual." },
-    { nombre: "Los Enamorados", significado: "Amor, armonía, relaciones, decisiones." },
-    { nombre: "El Carro", significado: "Control, voluntad, victoria, determinación." },
-    { nombre: "La Fuerza", significado: "Coraje, persuasión, influencia, compasión." },
-    { nombre: "El Ermitaño", significado: "Introspección, soledad, guía interior." },
-    { nombre: "La Rueda de la Fortuna", significado: "Cambio, ciclos, destino, suerte." },
-    { nombre: "La Justicia", significado: "Justicia, equidad, verdad, ley." },
-    { nombre: "El Colgado", significado: "Pausa, rendición, dejar ir, nuevas perspectivas." },
-    { nombre: "La Muerte", significado: "Finales, cambio, transformación, transición." },
-    { nombre: "La Templanza", significado: "Equilibrio, paciencia, moderación." },
-    { nombre: "El Diablo", significado: "Adicción, sexualidad, apego, restricción." },
-    { nombre: "La Torre", significado: "Cambio repentino, agitación, caos, revelación." },
-    { nombre: "La Estrella", significado: "Esperanza, fe, propósito, renovación." },
-    { nombre: "La Luna", significado: "Ilusión, miedo, ansiedad, subconsciente." },
-    { nombre: "El Sol", significado: "Positividad, diversión, calidez, éxito." },
-    { nombre: "El Juicio", significado: "Juicio, renacimiento, llamado interior." },
-    { nombre: "El Mundo", significado: "Terminación, integración, viaje, éxito." }
+    { nombre: "El Loco", significado: "Nuevos comienzos, saltos de fe." },
+    { nombre: "El Mago", significado: "Poder personal, acción, iniciativa." },
+    { nombre: "La Sacerdotisa", significado: "Intuición, secretos, sabiduría interna." },
+    { nombre: "La Emperatriz", significado: "Abundancia, creación, fertilidad." },
+    { nombre: "El Emperador", significado: "Estructura, control, autoridad." },
+    { nombre: "El Hierofante", significado: "Tradición, aprendizaje, consejo." },
+    { nombre: "Los Enamorados", significado: "Decisiones, amor, armonía." },
+    { nombre: "El Carro", significado: "Victoria, determinación, avance." },
+    { nombre: "La Fuerza", significado: "Coraje, paciencia, dominio propio." },
+    { nombre: "El Ermitaño", significado: "Soledad buscada, reflexión, guía." },
+    { nombre: "La Rueda de la Fortuna", significado: "Cambios de suerte, ciclos." },
+    { nombre: "La Justicia", significado: "Verdad, causa y efecto, equilibrio." },
+    { nombre: "El Colgado", significado: "Pausa, sacrificio, ver las cosas distinto." },
+    { nombre: "La Muerte", significado: "Transformación, finales necesarios." },
+    { nombre: "La Templanza", significado: "Moderación, paciencia, mezcla ideal." },
+    { nombre: "El Diablo", significado: "Apegos, tentación, vicios." },
+    { nombre: "La Torre", significado: "Caos, revelación, cambio brusco." },
+    { nombre: "La Estrella", significado: "Esperanza, renovación, fe." },
+    { nombre: "La Luna", significado: "Confusión, miedos, ilusiones." },
+    { nombre: "El Sol", significado: "Éxito, claridad, alegría total." },
+    { nombre: "El Juicio", significado: "Despertar, evaluación, propósito." },
+    { nombre: "El Mundo", significado: "Cierre de ciclos, plenitud, éxito." }
 ];
 
-// 3. Función para consultar a la IA (AJUSTADA PARA SER DIRECTA)
+// 3. Función de IA: Brutalmente directa
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
         const response = await fetch("https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct", {
@@ -50,26 +50,32 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             method: "POST",
             body: JSON.stringify({
                 inputs: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-                Eres Tarod, un místico lector de tarot de Medellín. 
-                REGLAS DE RESPUESTA:
-                - Sé MUY DIRECTO. No saludes ni des introducciones largas.
-                - Responde a la pregunta de ${usuario} usando la carta "${cartaNombre}" (${cartaSignificado}).
-                - Usa máximo 2 párrafos cortos.
-                - Tono místico con esencia paisa/costeña. Ve al grano.<|eot_id|><|start_header_id|>user<|end_header_id|>
-                Pregunta: ${pregunta}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
-                parameters: { max_new_tokens: 250, temperature: 0.6 }
+                Eres Tarod, el oráculo de Medellín. Eres brutalmente honesto y directo.
+                REGLAS ESTRICTAS:
+                - Responde a ${usuario} en MÁXIMO 80 PALABRAS.
+                - Prohibido saludar o decir "La carta de...".
+                - Ve al grano con la carta "${cartaNombre}" (${cartaSignificado}).
+                - Tono místico con esencia paisa. No des vueltas, di las cosas como son.<|eot_id|><|start_header_id|>user<|end_header_id|>
+                Pregunta: "${pregunta}"<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
+                parameters: { 
+                    max_new_tokens: 120, // Suficiente para una respuesta clara sin cortarse
+                    temperature: 0.5, // Menos creatividad, más precisión
+                    top_p: 0.9
+                }
             }),
         });
         const result = await response.json();
-        const fullText = result[0]?.generated_text || "";
-        return fullText.split('<|assistant|>')[1]?.trim() || "La carta es clara, pero el destino aún está en tus manos.";
+        const texto = result[0]?.generated_text || "";
+        const respuestaLimpia = texto.split('<|assistant|>')[1]?.trim();
+        
+        return respuestaLimpia || "El oráculo está mudo. Póngase las pilas y pregunte después.";
     } catch (error) {
         console.error("Error IA:", error);
-        return "Hubo una interferencia en el plano astral. Intenta de nuevo.";
+        return "Hubo una interferencia en el plano astral. Intente de nuevo.";
     }
 }
 
-// 4. Eventos
+// 4. Lógica de Discord
 client.once('ready', () => {
     console.log(`🚀 Tarod ONLINE | ${client.user.tag}`);
 });
@@ -78,7 +84,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Dime qué quieres saber.");
+    if (!pregunta) return message.reply("Vea pues, dígame su duda o no le puedo leer nada.");
 
     await message.channel.sendTyping();
 
@@ -86,10 +92,10 @@ client.on('messageCreate', async (message) => {
     const respuestaIA = await consultarIA(pregunta, message.author.username, carta.nombre, carta.significado);
 
     const embed = new EmbedBuilder()
-        .setTitle(`🔮 Carta: ${carta.nombre}`)
+        .setTitle(`🔮 Revelación: ${carta.nombre}`)
         .setDescription(respuestaIA)
         .setColor('#6a0dad')
-        .setFooter({ text: 'Tarod Oráculo | Render' })
+        .setFooter({ text: 'Tarod | Oráculo de la Montaña' })
         .setTimestamp();
 
     message.reply({ embeds: [embed] });
@@ -97,9 +103,9 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
-// 5. Parche de estabilidad para Render
+// 5. Servidor de salud para Render (Puerto)
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Tarod Online\n');
+  res.end('Tarod Funcionando\n');
 }).listen(process.env.PORT || 3000);
