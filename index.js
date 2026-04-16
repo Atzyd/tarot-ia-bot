@@ -35,6 +35,10 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
+        // Configuramos un controlador de tiempo para no esperar eternamente
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000); // 25 segundos de espera
+
         const response = await fetch("https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct", {
             headers: { 
                 Authorization: `Bearer ${HUGGINGFACE_TOKEN}`,
@@ -42,44 +46,39 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>Eres Tarod, oráculo de Medellín. Responde a ${usuario} usando la carta "${cartaNombre}" (${cartaSignificado}). Sé directo, místico y breve. Máximo 50 palabras. Tono paisa.<|eot_id|><|start_header_id|>user<|end_header_id|>${pregunta}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
-                parameters: { max_new_tokens: 150, temperature: 0.7, return_full_text: false }
+                inputs: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>Eres Tarod, oráculo de Medellín. Responde a ${usuario} usando la carta "${cartaNombre}" (${cartaSignificado}). Sé místico, breve y directo. Máximo 40 palabras. Tono paisa.<|eot_id|><|start_header_id|>user<|end_header_id|>${pregunta}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
+                parameters: { max_new_tokens: 100, temperature: 0.7, wait_for_model: true } // "wait_for_model" es CLAVE
             }),
+            signal: controller.signal
         });
 
+        clearTimeout(timeout);
         const result = await response.json();
 
-        // Si la IA responde correctamente
         if (Array.isArray(result) && result[0]?.generated_text) {
-            return result[0].generated_text.replace(/<\|.*?\|>/g, "").trim();
+            return result[0].generated_text.split('<|assistant|>')[1]?.trim() || result[0].generated_text.replace(/<\|.*?\|>/g, "").trim();
         } 
         
-        // Si la IA está cargando el modelo (Error 503 común en Hugging Face)
-        if (result.error && result.estimated_time) {
-            return `El oráculo se está despertando (modelo cargando). Intenta de nuevo en ${Math.round(result.estimated_time)} segundos, mijo.`;
-        }
-
-        throw new Error("Respuesta no válida");
+        throw new Error("IA no disponible");
 
     } catch (e) {
-        // RESPUESTAS DE RESPALDO (Cuando la IA falla totalmente)
         const respaldos = [
-            `La carta de ${cartaNombre} me dice que la respuesta ya la tenés en el corazón, no le des más vueltas.`,
             `Con ${cartaNombre} te digo: hágale sin miedo, que el camino está marcado pero depende de vos.`,
             `Vea, la carta de ${cartaNombre} sugiere que te enfoqués más y dejés de dudar tanto.`,
-            `El universo con ${cartaNombre} te manda a decir que te relajés, que todo va a salir como debe.`
+            `El universo con ${cartaNombre} te manda a decir que te relajés, que todo va a salir como debe.`,
+            `La carta de ${cartaNombre} indica que la respuesta llegará cuando dejés de buscarla afuera.`
         ];
         return respaldos[Math.floor(Math.random() * respaldos.length)];
     }
 }
 
-client.once('ready', () => console.log(`🚀 Tarod ONLINE | ${client.user.tag}`));
+client.once('ready', () => console.log(`🚀 Tarod ONLINE | Medellín Edition`));
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Soltá la duda pues, que las cartas no adivinan solas.");
+    if (!pregunta) return message.reply("Dime qué quieres saber, pues.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -89,8 +88,7 @@ client.on('messageCreate', async (message) => {
         .setTitle(`🔮 Revelación: ${carta.nombre}`)
         .setDescription(respuesta)
         .setColor('#6a0dad')
-        .setFooter({ text: 'Tarod Oráculo | Medellín Edition' })
-        .setTimestamp();
+        .setFooter({ text: 'Tarod Oráculo | Medellín Edition' });
 
     message.reply({ embeds: [embed] });
 });
@@ -100,5 +98,5 @@ client.login(DISCORD_TOKEN);
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Tarod Online');
+  res.end('Online');
 }).listen(process.env.PORT || 3000);
