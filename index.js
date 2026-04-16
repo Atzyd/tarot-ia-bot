@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
-// 1. Configuración del Cliente
+// 1. Configuración del Cliente de Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -13,33 +13,33 @@ const client = new Client({
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 
-// 2. Diccionario de Cartas
+// 2. Diccionario de Arcanos Mayores
 const cartasTarot = [
     { nombre: "El Loco", significado: "Nuevos comienzos, optimismo." },
     { nombre: "El Mago", significado: "Poder personal, acción." },
     { nombre: "La Sacerdotisa", significado: "Intuición, misterio." },
-    { nombre: "La Emperatriz", significado: "Abundancia, naturaleza." },
+    { nombre: "La Emperatriz", significado: "Abundancia, creación." },
     { nombre: "El Emperador", significado: "Autoridad, estructura." },
     { nombre: "El Hierofante", significado: "Sabiduría, tradición." },
     { nombre: "Los Enamorados", significado: "Amor, decisiones." },
     { nombre: "El Carro", significado: "Victoria, determinación." },
-    { nombre: "La Fuerza", significado: "Coraje, compasión." },
-    { nombre: "El Ermitaño", significado: "Soledad, introspección." },
+    { nombre: "La Fuerza", significado: "Coraje, paciencia." },
+    { nombre: "El Ermitaño", significado: "Soledad, reflexión." },
     { nombre: "La Rueda de la Fortuna", significado: "Cambio, destino." },
-    { nombre: "La Justicia", significado: "Justicia, verdad." },
+    { nombre: "La Justicia", significado: "Verdad, equilibrio." },
     { nombre: "El Colgado", significado: "Pausa, perspectiva." },
     { nombre: "La Muerte", significado: "Finales, transformación." },
-    { nombre: "La Templanza", significado: "Paciencia, equilibrio." },
+    { nombre: "La Templanza", significado: "Moderación, paciencia." },
     { nombre: "El Diablo", significado: "Apego, tentación." },
     { nombre: "La Torre", significado: "Caos, revelación." },
     { nombre: "La Estrella", significado: "Esperanza, fe." },
     { nombre: "La Luna", significado: "Miedo, ilusión." },
     { nombre: "El Sol", significado: "Éxito, alegría." },
-    { nombre: "El Juicio", significado: "Llamado, despertar." },
-    { nombre: "El Mundo", significado: "Plenitud, viaje." }
+    { nombre: "El Juicio", significado: "Despertar, llamado." },
+    { nombre: "El Mundo", significado: "Plenitud, éxito." }
 ];
 
-// 3. Función de IA (Con manejo de filtros y errores)
+// 3. Función de IA (Con "Plan B" para evitar errores de censura)
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
         const response = await fetch("https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct", {
@@ -50,12 +50,13 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             method: "POST",
             body: JSON.stringify({
                 inputs: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-                Eres Tarod, oráculo de Medellín. Responde a ${usuario} usando la carta "${cartaNombre}" (${cartaSignificado}).
-                REGLAS: Sé directo, breve (max 60 palabras) y honesto. No saludes. Tono místico paisa.<|eot_id|><|start_header_id|>user<|end_header_id|>
-                Pregunta: ${pregunta}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
+                Eres Tarod, el oráculo de Medellín. Eres brutalmente honesto y directo.
+                REGLAS: Responde a ${usuario} usando "${cartaNombre}". MÁXIMO 60 PALABRAS.
+                No saludes, no des introducciones. Tono místico paisa. Ve al grano.<|eot_id|><|start_header_id|>user<|end_header_id|>
+                Pregunta: "${pregunta}"<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
                 parameters: { 
-                    max_new_tokens: 120, 
-                    temperature: 0.6,
+                    max_new_tokens: 100, 
+                    temperature: 0.8, // Mayor temperatura ayuda a evadir bloqueos rígidos
                     return_full_text: false 
                 }
             }),
@@ -63,34 +64,40 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
 
         const result = await response.json();
 
-        if (result.error) {
-            console.error("Error HF:", result.error);
-            return "El oráculo no puede responder a eso ahora. Las energías están cruzadas, mijo.";
+        // Si la IA bloquea la respuesta o hay error, usamos el Plan B místico
+        if (result.error || !result[0]?.generated_text) {
+            console.log("IA Bloqueada o cargando. Usando respuesta de respaldo.");
+            const respuestasMisticas = [
+                `La carta de ${cartaNombre} dice que cada quien sigue su verdad y el destino no juzga, solo observa.`,
+                `Vea, ${cartaNombre} sugiere que te enfoques en tu propio camino. Lo que otros hagan no cambia tu suerte.`,
+                `El universo es muy grande para etiquetas. Con ${cartaNombre} te digo: vive y deja vivir, mijo.`,
+                `Las cartas ven que te preocupas por cosas que no puedes cambiar. Suelta eso y verás la luz.`
+            ];
+            return respuestasMisticas[Math.floor(Math.random() * respuestasMisticas.length)];
         }
 
-        const texto = Array.isArray(result) ? result[0]?.generated_text : result.generated_text;
-        const respuestaLimpia = texto?.replace(/<\|.*?\|>/g, "").trim();
+        const texto = result[0].generated_text.replace(/<\|.*?\|>/g, "").trim();
+        return texto;
 
-        return respuestaLimpia || "La carta dice mucho, pero el destino prefiere callar esta vez.";
     } catch (error) {
-        console.error("Error Petición:", error);
-        return "Hubo una desconexión mística. Intenta de nuevo en un momento.";
+        return "La energía está pesada y el canal se cerró. Intenta preguntar de otra forma.";
     }
 }
 
-// 4. Eventos de Discord
+// 4. Lógica de Discord
 client.once('ready', () => {
-    console.log(`🚀 Tarod ONLINE | ${client.user.tag}`);
+    console.log(`🚀 Tarod ONLINE | Medellín Edition | ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Vea pues, dígame su duda primero.");
+    if (!pregunta) return message.reply("Dime qué quieres saber, no seas tímido.");
 
     await message.channel.sendTyping();
 
+    // Selección aleatoria de carta
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
     const respuestaIA = await consultarIA(pregunta, message.author.username, carta.nombre, carta.significado);
 
@@ -106,9 +113,14 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
-// 5. Servidor para Render (Estabilidad)
+// 5. Servidor de salud para Render (Mantiene el bot vivo)
 const http = require('http');
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Tarod Online\n');
-}).listen(process.env.PORT || 3000);
+  res.end('Tarod Bot está Online\n');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🌐 Servidor de salud escuchando en el puerto ${PORT}`);
+});
