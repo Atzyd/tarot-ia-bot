@@ -9,36 +9,32 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
 
 const cartasTarot = [
-    { nombre: "El Loco", significado: "Nuevos comienzos, saltos de fe." },
-    { nombre: "El Mago", significado: "Poder personal, acción, iniciativa." },
-    { nombre: "La Sacerdotisa", significado: "Intuición, misterio, sabiduría." },
-    { nombre: "La Emperatriz", significado: "Abundancia, creación, fertilidad." },
-    { nombre: "El Emperador", significado: "Estructura, control, autoridad." },
-    { nombre: "El Hierofante", significado: "Tradición, aprendizaje, consejo." },
-    { nombre: "Los Enamorados", significado: "Decisiones, amor, armonía." },
-    { nombre: "El Carro", significado: "Victoria, determinación, avance." },
-    { nombre: "La Fuerza", significado: "Coraje, paciencia, dominio propio." },
-    { nombre: "El Ermitaño", significado: "Soledad, reflexión, guía." },
-    { nombre: "La Rueda de la Fortuna", significado: "Cambios de suerte, ciclos." },
-    { nombre: "La Justicia", significado: "Verdad, equilibrio, causa y efecto." },
-    { nombre: "El Colgado", significado: "Pausa, perspectiva, sacrificio." },
-    { nombre: "La Muerte", significado: "Transformación, finales necesarios." },
-    { nombre: "La Templanza", significado: "Moderación, paciencia, equilibrio." },
-    { nombre: "El Diablo", significado: "Apegos, tentación, vicios." },
-    { nombre: "La Torre", significado: "Caos, revelación, cambio brusco." },
-    { nombre: "La Estrella", significado: "Esperanza, renovación, fe." },
-    { nombre: "La Luna", significado: "Confusión, miedos, ilusiones." },
-    { nombre: "El Sol", significado: "Éxito, claridad, alegría total." },
-    { nombre: "El Juicio", significado: "Despertar, evaluación, propósito." },
-    { nombre: "El Mundo", significado: "Plenitud, éxito, cierre de ciclos." }
+    { nombre: "El Loco", significado: "Nuevos comienzos y saltos de fe." },
+    { nombre: "El Mago", significado: "Poder personal y acción." },
+    { nombre: "La Sacerdotisa", significado: "Intuición y misterio." },
+    { nombre: "La Emperatriz", significado: "Abundancia y creación." },
+    { nombre: "El Emperador", significado: "Estructura y autoridad." },
+    { nombre: "El Hierofante", significado: "Tradición y sabiduría." },
+    { nombre: "Los Enamorados", significado: "Decisiones y amor." },
+    { nombre: "El Carro", significado: "Victoria y determinación." },
+    { nombre: "La Fuerza", significado: "Coraje y paciencia." },
+    { nombre: "El Ermitaño", significado: "Soledad y reflexión." },
+    { nombre: "La Rueda de la Fortuna", significado: "Cambio y destino." },
+    { nombre: "La Justicia", significado: "Verdad y equilibrio." },
+    { nombre: "El Colgado", significado: "Pausa y perspectiva." },
+    { nombre: "La Muerte", significado: "Finales y transformación." },
+    { nombre: "La Templanza", significado: "Moderación y paciencia." },
+    { nombre: "El Diablo", significado: "Apego y tentación." },
+    { nombre: "La Torre", significado: "Caos y revelación." },
+    { nombre: "La Estrella", significado: "Esperanza y fe." },
+    { nombre: "La Luna", significado: "Miedo e ilusión." },
+    { nombre: "El Sol", significado: "Éxito y alegría." },
+    { nombre: "El Juicio", significado: "Despertar y propósito." },
+    { nombre: "El Mundo", significado: "Éxito y plenitud." }
 ];
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        // Configuramos un controlador de tiempo para no esperar eternamente
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 25000); // 25 segundos de espera
-
         const response = await fetch("https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct", {
             headers: { 
                 Authorization: `Bearer ${HUGGINGFACE_TOKEN}`,
@@ -46,39 +42,34 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>Eres Tarod, oráculo de Medellín. Responde a ${usuario} usando la carta "${cartaNombre}" (${cartaSignificado}). Sé místico, breve y directo. Máximo 40 palabras. Tono paisa.<|eot_id|><|start_header_id|>user<|end_header_id|>${pregunta}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
-                parameters: { max_new_tokens: 100, temperature: 0.7, wait_for_model: true } // "wait_for_model" es CLAVE
+                inputs: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>Eres Tarod, oráculo de Medellín. Responde a ${usuario} sobre "${cartaNombre}". Sé breve y directo. Tono paisa.<|eot_id|><|start_header_id|>user<|end_header_id|>${pregunta}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`,
+                parameters: { max_new_tokens: 80, temperature: 0.6, wait_for_model: true }
             }),
-            signal: controller.signal
         });
 
-        clearTimeout(timeout);
         const result = await response.json();
 
+        // Si la IA responde bien
         if (Array.isArray(result) && result[0]?.generated_text) {
-            return result[0].generated_text.split('<|assistant|>')[1]?.trim() || result[0].generated_text.replace(/<\|.*?\|>/g, "").trim();
-        } 
+            const output = result[0].generated_text;
+            return output.includes('<|assistant|>') ? output.split('<|assistant|>')[1].trim() : output.trim();
+        }
         
-        throw new Error("IA no disponible");
+        throw new Error("Respuesta inválida");
 
     } catch (e) {
-        const respaldos = [
-            `Con ${cartaNombre} te digo: hágale sin miedo, que el camino está marcado pero depende de vos.`,
-            `Vea, la carta de ${cartaNombre} sugiere que te enfoqués más y dejés de dudar tanto.`,
-            `El universo con ${cartaNombre} te manda a decir que te relajés, que todo va a salir como debe.`,
-            `La carta de ${cartaNombre} indica que la respuesta llegará cuando dejés de buscarla afuera.`
-        ];
-        return respaldos[Math.floor(Math.random() * respaldos.length)];
+        // RESPALDO DINÁMICO: Si la IA falla, la respuesta cambia según la carta para que no sea repetitivo
+        return `Vea mijo, con ${cartaNombre} le digo: ${cartaSignificado} Es momento de dejar de dudar y ponerse las pilas con lo suyo. El universo no espera a nadie.`;
     }
 }
 
-client.once('ready', () => console.log(`🚀 Tarod ONLINE | Medellín Edition`));
+client.once('ready', () => console.log(`🚀 Tarod ONLINE`));
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Dime qué quieres saber, pues.");
+    if (!pregunta) return message.reply("Soltá la duda pues.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -88,7 +79,7 @@ client.on('messageCreate', async (message) => {
         .setTitle(`🔮 Revelación: ${carta.nombre}`)
         .setDescription(respuesta)
         .setColor('#6a0dad')
-        .setFooter({ text: 'Tarod Oráculo | Medellín Edition' });
+        .setFooter({ text: 'Tarod Oráculo | Medellín' });
 
     message.reply({ embeds: [embed] });
 });
