@@ -35,7 +35,6 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        // Usamos Gemma-2b que es súper ligero
         const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-1.1-2b-it", {
             headers: { 
                 Authorization: `Bearer ${HUGGINGFACE_TOKEN}`,
@@ -43,26 +42,24 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `Eres Tarod, oráculo de Medellín. Responde a ${usuario} de forma mística y breve (max 30 palabras) sobre "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Usa jerga paisa.`,
-                parameters: { max_new_tokens: 60, temperature: 0.7, wait_for_model: true }
+                inputs: `Eres Tarod de Medellín. Usuario ${usuario} pregunta: "${pregunta}". Responde corto usando la carta ${cartaNombre} (${cartaSignificado}). Tono místico paisa.`,
+                parameters: { max_new_tokens: 50, temperature: 0.7, wait_for_model: true }
             }),
         });
 
         const result = await response.json();
-
-        // LOG CRÍTICO: Esto te dirá en Render qué está pasando realmente
-        console.log("Respuesta de Hugging Face:", JSON.stringify(result));
+        console.log("LOG:", JSON.stringify(result)); // Revisa esto en los logs de Render
 
         if (Array.isArray(result) && result[0]?.generated_text) {
-            let res = result[0].generated_text;
-            // Limpiamos si el modelo repite el input
-            const splitRes = res.split('\n');
-            return splitRes[splitRes.length - 1].trim() || res.trim();
+            let res = result[0].generated_text.trim();
+            // Intentamos extraer solo la parte de la respuesta si repite el prompt
+            if (res.includes("paisa.")) res = res.split("paisa.")[1];
+            return res.trim() || "El oráculo está meditando, intente ahora.";
         } 
         
-        throw new Error(result.error || "Error Desconocido");
+        throw new Error("No IA response");
     } catch (e) {
-        console.error("Fallo en IA:", e.message);
+        // RESPALDO DINÁMICO
         const respaldos = [
             `Vea ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale sin miedo pero con los pies en la tierra.`,
             `Escuche pues, ${cartaNombre} marca ${cartaSignificado}. Si se pone las pilas y no se distrae, le va a ir de una.`,
@@ -78,7 +75,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Dime qué quieres saber, pues.");
+    if (!pregunta) return message.reply("Hable pues, mijo.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
