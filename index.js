@@ -2,7 +2,11 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -35,31 +39,37 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-1.1-2b-it", {
+        // Usamos Mistral-7B-Instruct-v0.2 que suele ser el más estable para el JSON
+        const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2", {
             headers: { 
                 Authorization: `Bearer ${HUGGINGFACE_TOKEN}`,
                 "Content-Type": "application/json"
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `Eres Tarod de Medellín. Usuario ${usuario} pregunta: "${pregunta}". Responde corto usando la carta ${cartaNombre} (${cartaSignificado}). Tono místico paisa.`,
-                parameters: { max_new_tokens: 50, temperature: 0.7, wait_for_model: true }
+                inputs: `<s>[INST] Eres Tarod, oráculo de Medellín. Responde a ${usuario} sobre "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé breve, místico y usa jerga paisa. [/INST]`,
+                parameters: { max_new_tokens: 60, temperature: 0.7, wait_for_model: true }
             }),
         });
 
+        // Verificamos si la respuesta es realmente un JSON antes de procesar
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("La IA devolvió HTML (posible bloqueo de servicio)");
+        }
+
         const result = await response.json();
-        console.log("LOG:", JSON.stringify(result)); // Revisa esto en los logs de Render
 
         if (Array.isArray(result) && result[0]?.generated_text) {
-            let res = result[0].generated_text.trim();
-            // Intentamos extraer solo la parte de la respuesta si repite el prompt
-            if (res.includes("paisa.")) res = res.split("paisa.")[1];
-            return res.trim() || "El oráculo está meditando, intente ahora.";
+            let res = result[0].generated_text;
+            if (res.includes('[/INST]')) res = res.split('[/INST]')[1].trim();
+            return res || "El destino es borroso hoy, mijo.";
         } 
         
-        throw new Error("No IA response");
+        throw new Error("Formato de respuesta inválido");
+
     } catch (e) {
-        // RESPALDO DINÁMICO
+        console.error("Fallo real en IA:", e.message);
         const respaldos = [
             `Vea ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale sin miedo pero con los pies en la tierra.`,
             `Escuche pues, ${cartaNombre} marca ${cartaSignificado}. Si se pone las pilas y no se distrae, le va a ir de una.`,
@@ -69,13 +79,16 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     }
 }
 
-client.once('ready', () => console.log(`🚀 Tarod ONLINE`));
+// Corregimos el evento ready según el aviso de deprecación
+client.once('clientReady', (readyClient) => {
+    console.log(`🚀 Tarod ONLINE | Usuario: ${readyClient.user.tag}`);
+});
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Hable pues, mijo.");
+    if (!pregunta) return message.reply("Dime qué quieres saber, pues.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
