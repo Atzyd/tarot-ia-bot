@@ -35,30 +35,41 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        // Cambiamos a Phi-3-mini, es extremadamente rápido y eficiente
-        const response = await fetch("https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct", {
+        const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3", {
             headers: { 
                 Authorization: `Bearer ${HUGGINGFACE_TOKEN}`,
                 "Content-Type": "application/json"
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `<|user|>\nEres Tarod de Medellín. Responde a ${usuario} sobre su pregunta: "${pregunta}" usando la carta ${cartaNombre} (${cartaSignificado}). Sé breve, directo y usa jerga paisa. Max 30 palabras.<|end|>\n<|assistant|>`,
-                parameters: { max_new_tokens: 60, temperature: 0.7, wait_for_model: true }
+                inputs: `[INST] Eres Tarod, un oráculo de Medellín. Responde a ${usuario} sobre su duda: "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé breve (max 30 palabras), directo y usa jerga paisa. No saludes. [/INST]`,
+                parameters: { max_new_tokens: 80, temperature: 0.7, wait_for_model: true }
             }),
         });
 
         const result = await response.json();
 
+        // Si la IA responde un array (formato estándar)
         if (Array.isArray(result) && result[0]?.generated_text) {
-            const texto = result[0].generated_text;
-            return texto.split('<|assistant|>')[1]?.trim() || texto.trim();
-        }
+            let res = result[0].generated_text;
+            if (res.includes('[/INST]')) res = res.split('[/INST]')[1].trim();
+            return res;
+        } 
         
-        throw new Error("API Offline");
+        // Si responde un objeto directo
+        if (result.generated_text) {
+             return result.generated_text.split('[/INST]')[1]?.trim() || result.generated_text;
+        }
+
+        throw new Error("No hay respuesta de IA");
     } catch (e) {
-        // Respaldo dinámico mejorado
-        return `Vea mijo, con la carta de ${cartaNombre} le digo: viene ${cartaSignificado}. Póngase las pilas y no se me distraiga, que el examen se gana es estudiando y con la mente clara.`;
+        // RESPALDO DINÁMICO (Si la IA falla, la respuesta cambia según la carta)
+        const consejos = [
+            `Vea ${usuario}, con ${cartaNombre} le digo: eso viene con ${cartaSignificado}. Hágale sin miedo pero con los pies en la tierra.`,
+            `Escuche pues, ${cartaNombre} marca ${cartaSignificado}. Si se pone las pilas y no se distrae, le va a ir de una.`,
+            `Mijo, esa carta de ${cartaNombre} es pura energía de ${cartaSignificado}. Deje de pensar tanto y empiece a actuar.`
+        ];
+        return consejos[Math.floor(Math.random() * consejos.length)];
     }
 }
 
@@ -68,7 +79,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Hable pues, mijo.");
+    if (!pregunta) return message.reply("Suelte la duda pues, mijo.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
