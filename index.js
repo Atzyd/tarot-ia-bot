@@ -35,41 +35,40 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3", {
+        // Usamos Gemma-2b que es súper ligero
+        const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-1.1-2b-it", {
             headers: { 
                 Authorization: `Bearer ${HUGGINGFACE_TOKEN}`,
                 "Content-Type": "application/json"
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `[INST] Eres Tarod, un oráculo de Medellín. Responde a ${usuario} sobre su duda: "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé breve (max 30 palabras), directo y usa jerga paisa. No saludes. [/INST]`,
-                parameters: { max_new_tokens: 80, temperature: 0.7, wait_for_model: true }
+                inputs: `Eres Tarod, oráculo de Medellín. Responde a ${usuario} de forma mística y breve (max 30 palabras) sobre "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Usa jerga paisa.`,
+                parameters: { max_new_tokens: 60, temperature: 0.7, wait_for_model: true }
             }),
         });
 
         const result = await response.json();
 
-        // Si la IA responde un array (formato estándar)
+        // LOG CRÍTICO: Esto te dirá en Render qué está pasando realmente
+        console.log("Respuesta de Hugging Face:", JSON.stringify(result));
+
         if (Array.isArray(result) && result[0]?.generated_text) {
             let res = result[0].generated_text;
-            if (res.includes('[/INST]')) res = res.split('[/INST]')[1].trim();
-            return res;
+            // Limpiamos si el modelo repite el input
+            const splitRes = res.split('\n');
+            return splitRes[splitRes.length - 1].trim() || res.trim();
         } 
         
-        // Si responde un objeto directo
-        if (result.generated_text) {
-             return result.generated_text.split('[/INST]')[1]?.trim() || result.generated_text;
-        }
-
-        throw new Error("No hay respuesta de IA");
+        throw new Error(result.error || "Error Desconocido");
     } catch (e) {
-        // RESPALDO DINÁMICO (Si la IA falla, la respuesta cambia según la carta)
-        const consejos = [
-            `Vea ${usuario}, con ${cartaNombre} le digo: eso viene con ${cartaSignificado}. Hágale sin miedo pero con los pies en la tierra.`,
+        console.error("Fallo en IA:", e.message);
+        const respaldos = [
+            `Vea ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale sin miedo pero con los pies en la tierra.`,
             `Escuche pues, ${cartaNombre} marca ${cartaSignificado}. Si se pone las pilas y no se distrae, le va a ir de una.`,
             `Mijo, esa carta de ${cartaNombre} es pura energía de ${cartaSignificado}. Deje de pensar tanto y empiece a actuar.`
         ];
-        return consejos[Math.floor(Math.random() * consejos.length)];
+        return respaldos[Math.floor(Math.random() * respaldos.length)];
     }
 }
 
@@ -79,7 +78,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Suelte la duda pues, mijo.");
+    if (!pregunta) return message.reply("Dime qué quieres saber, pues.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
