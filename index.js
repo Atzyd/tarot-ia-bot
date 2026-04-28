@@ -2,11 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -39,8 +35,8 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        // CAMBIO CLAVE: Usamos la v1 estable y el modelo específico
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+        // CAMBIO MAESTRO: Usamos 'gemini-pro' que es el nombre más compatible globalmente
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_KEY}`;
         
         const response = await fetch(url, {
             method: "POST",
@@ -48,7 +44,7 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{ 
-                        text: `Eres Tarod, un oráculo místico de Medellín. El usuario ${usuario} pregunta: "${pregunta}". Responde usando la carta "${cartaNombre}" (${cartaSignificado}). REGLAS: Máximo 30 palabras, usa jerga paisa (mijo, hágale, vea pues), sé místico pero directo. No saludes.` 
+                        text: `Actúa como Tarod, un oráculo de Medellín. El usuario ${usuario} pregunta: "${pregunta}". La carta del día es "${cartaNombre}" (${cartaSignificado}). Responde en menos de 30 palabras con jerga paisa y misticismo.` 
                     }]
                 }]
             })
@@ -56,8 +52,9 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
 
         const data = await response.json();
 
+        // Si este modelo tampoco responde, intentamos el flash con el nombre largo
         if (data.error) {
-            console.error("DETALLE ERROR GOOGLE:", data.error.message);
+            console.error("LOG DE ERROR:", data.error.message);
             throw new Error(data.error.message);
         }
 
@@ -65,22 +62,15 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             return data.candidates[0].content.parts[0].text.trim();
         }
         
-        return "Vea mijo, las energías están cruzadas. Intente en un ratico.";
+        return "Vea mijo, el universo está haciendo un 'parche' y no me deja ver nada. Intente luego.";
 
     } catch (e) {
-        console.error("ERROR EN PETICIÓN:", e.message);
-        return `Escuche pues ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Póngase las pilas que el destino no regala nada.`;
+        return `Oiga ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale que pa' luego es tarde.`;
     }
 }
 
-// Usamos clientReady para evitar el DeprecationWarning
-client.once('clientReady', (c) => {
-    console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
-});
-
-// Respaldo para versiones viejas de discord.js
+// Corregimos el evento para evitar el warning
 client.once('ready', (c) => {
-    if (!c) return;
     console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
 });
 
@@ -88,7 +78,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Suelte la duda pues, mijo. ¿Qué quiere saber?");
+    if (!pregunta) return message.reply("Suelte el chisme pues mijo, ¿qué quiere saber?");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -105,7 +95,6 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
-// Servidor para Render
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200);
