@@ -39,7 +39,7 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        // Usamos la versión v1 (estable) y el modelo flash-latest
+        // CAMBIO CLAVE: Usamos la v1 estable y el modelo específico
         const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
         
         const response = await fetch(url, {
@@ -48,7 +48,7 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{ 
-                        text: `Eres Tarod, un místico de Medellín. Responde a ${usuario} sobre su duda: "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé muy breve, místico y usa jerga paisa. Máximo 30 palabras.` 
+                        text: `Eres Tarod, un oráculo místico de Medellín. El usuario ${usuario} pregunta: "${pregunta}". Responde usando la carta "${cartaNombre}" (${cartaSignificado}). REGLAS: Máximo 30 palabras, usa jerga paisa (mijo, hágale, vea pues), sé místico pero directo. No saludes.` 
                     }]
                 }]
             })
@@ -57,7 +57,7 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
         const data = await response.json();
 
         if (data.error) {
-            console.error("DEBUG GEMINI ERROR:", data.error.message);
+            console.error("DETALLE ERROR GOOGLE:", data.error.message);
             throw new Error(data.error.message);
         }
 
@@ -65,16 +65,22 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             return data.candidates[0].content.parts[0].text.trim();
         }
         
-        return "Vea mijo, el universo está en silencio. Intente en un ratico.";
+        return "Vea mijo, las energías están cruzadas. Intente en un ratico.";
 
     } catch (e) {
-        console.error("FALLO FINAL IA:", e.message);
-        return `Escuche pues ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale con toda que usted es capaz.`;
+        console.error("ERROR EN PETICIÓN:", e.message);
+        return `Escuche pues ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Póngase las pilas que el destino no regala nada.`;
     }
 }
 
-// Cambiado a 'ready' para v14 o 'clientReady' para v15 según tu versión de discord.js
+// Usamos clientReady para evitar el DeprecationWarning
+client.once('clientReady', (c) => {
+    console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
+});
+
+// Respaldo para versiones viejas de discord.js
 client.once('ready', (c) => {
+    if (!c) return;
     console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
 });
 
@@ -82,7 +88,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Suelte la duda pues, mijo.");
+    if (!pregunta) return message.reply("Suelte la duda pues, mijo. ¿Qué quiere saber?");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -99,6 +105,7 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
+// Servidor para Render
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200);
