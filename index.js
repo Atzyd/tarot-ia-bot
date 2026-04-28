@@ -38,43 +38,49 @@ const cartasTarot = [
 ];
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
-    try {
-        // Intento con el modelo 1.5-pro-latest que suele ser el más estable en v1beta
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_KEY}`;
-        
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ 
-                        text: `Eres Tarod, oráculo de Medellín. ${usuario} pregunta: "${pregunta}". Carta: "${cartaNombre}" (${cartaSignificado}). Responde en 20 palabras, místico y muy paisa.` 
+    // Lista de modelos para intentar en orden de prioridad
+    const modelos = [
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-pro"
+    ];
+
+    for (const modelo of modelos) {
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${GEMINI_KEY}`;
+            
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ 
+                            text: `Eres Tarod, un oráculo de Medellín. ${usuario} pregunta: "${pregunta}". Responde usando la carta "${cartaNombre}" (${cartaSignificado}). Máximo 25 palabras, usa jerga paisa (mijo, ave maría, hágale).` 
+                        }]
                     }]
-                }]
-            })
-        });
+                })
+            });
 
-        const data = await response.json();
-
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
-            return data.candidates[0].content.parts[0].text.trim();
+            const data = await response.json();
+            if (data.candidates && data.candidates[0].content.parts[0].text) {
+                return data.candidates[0].content.parts[0].text.trim();
+            }
+        } catch (e) {
+            console.error(`Error con modelo ${modelo}:`, e.message);
         }
-        
-        throw new Error("Respuesta inválida");
-
-    } catch (e) {
-        console.error("LOG DE ERROR IA:", e.message);
-        // RESPUESTA DE RESPALDO (Failsafe) para que siempre funcione
-        const respuestasPaisa = [
-            `Vea mijo, con ${cartaNombre} le digo: ${cartaSignificado}. ¡Hágale pues con berraquera!`,
-            `Ave María, ${cartaNombre} indica ${cartaSignificado}. Póngase las pilas pues.`,
-            `Oiga pues, ${cartaNombre} es puro ${cartaSignificado}. No se me achante.`
-        ];
-        return respuestasPaisa[Math.floor(Math.random() * respuestasPaisa.length)];
     }
+
+    // Respuesta de respaldo si todos los modelos fallan
+    return `Vea mijo ${usuario}, el destino está borroso pero con ${cartaNombre} le digo: ${cartaSignificado}. ¡Hágale con toda!`;
 }
 
+client.once('clientReady', (c) => {
+    console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
+});
+
+// Fallback para versiones que solo detectan 'ready'
 client.once('ready', (c) => {
+    if(!c) return;
     console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
 });
 
@@ -82,7 +88,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Suelte la duda pues mijo.");
+    if (!pregunta) return message.reply("Suelte la duda pues mijo, ¿qué quiere saber?");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -99,7 +105,7 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
-// Servidor básico para Render
+// Servidor para Render
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200);
