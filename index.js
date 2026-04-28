@@ -1,56 +1,75 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const { GoogleGenerativeAI } = require("@google/generative-ai"); // Librería oficial
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY); // Inicializamos Gemini
+const GEMINI_KEY = process.env.GEMINI_KEY;
 
 const cartasTarot = [
-    { nombre: "El Loco", significado: "nuevos comienzos y fe." },
-    { nombre: "El Mago", significado: "poder personal y acción." },
-    { nombre: "La Sacerdotisa", significado: "intuición y misterio." },
-    { nombre: "La Emperatriz", significado: "abundancia y creación." },
-    { nombre: "El Emperador", significado: "estructura y autoridad." },
-    { nombre: "El Hierofante", significado: "sabiduría y tradición." },
-    { nombre: "Los Enamorados", significado: "amor y decisiones." },
-    { nombre: "El Carro", significado: "victoria y determinación." },
-    { nombre: "La Fuerza", significado: "coraje y paciencia." },
-    { nombre: "El Ermitaño", significado: "reflexión y soledad." },
-    { nombre: "La Rueda de la Fortuna", significado: "cambios del destino." },
-    { nombre: "La Justicia", significado: "verdad y equilibrio." },
-    { nombre: "El Colgado", significado: "pausa y perspectiva." },
-    { nombre: "La Muerte", significado: "transformación y finales." },
-    { nombre: "La Templanza", significado: "moderación y equilibrio." },
-    { nombre: "El Diablo", significado: "tentación y ataduras." },
-    { nombre: "La Torre", significado: "caos y revelación." },
-    { nombre: "La Estrella", significado: "esperanza y renovación." },
-    { nombre: "La Luna", significado: "miedo e ilusiones." },
-    { nombre: "El Sol", significado: "éxito y alegría." },
-    { nombre: "El Juicio", significado: "despertar y propósito." },
-    { nombre: "El Mundo", significado: "plenitud y éxito total." }
+    { nombre: "El Loco", significado: "nuevos comienzos." },
+    { nombre: "El Mago", significado: "poder personal." },
+    { nombre: "La Sacerdotisa", significado: "intuición." },
+    { nombre: "La Emperatriz", significado: "abundancia." },
+    { nombre: "El Emperador", significado: "autoridad." },
+    { nombre: "El Hierofante", significado: "sabiduría." },
+    { nombre: "Los Enamorados", significado: "decisiones." },
+    { nombre: "El Carro", significado: "victoria." },
+    { nombre: "La Fuerza", significado: "coraje." },
+    { nombre: "El Ermitaño", significado: "reflexión." },
+    { nombre: "La Rueda de la Fortuna", significado: "cambio." },
+    { nombre: "La Justicia", significado: "equilibrio." },
+    { nombre: "El Colgado", significado: "pausa." },
+    { nombre: "La Muerte", significado: "transformación." },
+    { nombre: "La Templanza", significado: "paciencia." },
+    { nombre: "El Diablo", significado: "tentación." },
+    { nombre: "La Torre", significado: "caos." },
+    { nombre: "La Estrella", significado: "esperanza." },
+    { nombre: "La Luna", significado: "ilusión." },
+    { nombre: "El Sol", significado: "éxito." },
+    { nombre: "El Juicio", significado: "propósito." },
+    { nombre: "El Mundo", significado: "plenitud." }
 ];
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
         
-        const prompt = `Eres Tarod, un oráculo místico de Medellín. El usuario ${usuario} pregunta: "${pregunta}". 
-        Responde basándote en la carta "${cartaNombre}" (${cartaSignificado}). 
-        REGLAS: Máximo 40 palabras, usa jerga paisa, sé directo y místico. No saludes.`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ 
+                        text: `Eres Tarod, oráculo de Medellín. Responde a ${usuario} sobre "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé muy breve, directo y usa jerga paisa. Máximo 30 palabras.` 
+                    }]
+                }]
+            })
+        });
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const data = await response.json();
+
+        // Si hay un error de API (como Key inválida), esto lo atrapará
+        if (data.error) {
+            console.error("DEBUG GEMINI:", data.error.message);
+            throw new Error(data.error.message);
+        }
+
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+            return data.candidates[0].content.parts[0].text.trim();
+        }
         
-        return text.trim();
+        return "Vea pues, el destino está nublado. Intente más tarde, mijo.";
 
     } catch (e) {
-        console.error("ERROR CRÍTICO GEMINI:", e);
-        return `Vea mijo, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale sin miedo, que el destino ya está trazado pero hay que camellarle.`;
+        console.error("FALLO EN IA:", e.message);
+        return `Vea ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale con juicio que así se ganan los parciales.`;
     }
 }
 
@@ -62,7 +81,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Diga pues qué quiere saber, mijo.");
+    if (!pregunta) return message.reply("Suelte la duda pues, mijo.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -79,7 +98,7 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
-// Servidor básico para Render
+// Servidor de salud para Render
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200);
