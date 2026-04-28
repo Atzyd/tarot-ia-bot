@@ -39,7 +39,8 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+        // Usamos la versión v1 (estable) y el modelo flash-latest
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
         
         const response = await fetch(url, {
             method: "POST",
@@ -47,7 +48,7 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{ 
-                        text: `Eres Tarod, oráculo de Medellín. Responde a ${usuario} sobre "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé muy breve, directo y usa jerga paisa. Máximo 30 palabras.` 
+                        text: `Eres Tarod, un místico de Medellín. Responde a ${usuario} sobre su duda: "${pregunta}" usando la carta "${cartaNombre}" (${cartaSignificado}). Sé muy breve, místico y usa jerga paisa. Máximo 30 palabras.` 
                     }]
                 }]
             })
@@ -55,9 +56,8 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
 
         const data = await response.json();
 
-        // Si hay un error de API (como Key inválida), esto lo atrapará
         if (data.error) {
-            console.error("DEBUG GEMINI:", data.error.message);
+            console.error("DEBUG GEMINI ERROR:", data.error.message);
             throw new Error(data.error.message);
         }
 
@@ -65,14 +65,15 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             return data.candidates[0].content.parts[0].text.trim();
         }
         
-        return "Vea pues, el destino está nublado. Intente más tarde, mijo.";
+        return "Vea mijo, el universo está en silencio. Intente en un ratico.";
 
     } catch (e) {
-        console.error("FALLO EN IA:", e.message);
-        return `Vea ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale con juicio que así se ganan los parciales.`;
+        console.error("FALLO FINAL IA:", e.message);
+        return `Escuche pues ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale con toda que usted es capaz.`;
     }
 }
 
+// Cambiado a 'ready' para v14 o 'clientReady' para v15 según tu versión de discord.js
 client.once('ready', (c) => {
     console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
 });
@@ -98,7 +99,6 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
-// Servidor de salud para Render
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200);
