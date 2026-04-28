@@ -2,7 +2,11 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -35,8 +39,8 @@ const cartasTarot = [
 
 async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
     try {
-        // CAMBIO MAESTRO: Usamos 'gemini-pro' que es el nombre más compatible globalmente
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_KEY}`;
+        // Intento con el modelo 1.5-pro-latest que suele ser el más estable en v1beta
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_KEY}`;
         
         const response = await fetch(url, {
             method: "POST",
@@ -44,7 +48,7 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{ 
-                        text: `Actúa como Tarod, un oráculo de Medellín. El usuario ${usuario} pregunta: "${pregunta}". La carta del día es "${cartaNombre}" (${cartaSignificado}). Responde en menos de 30 palabras con jerga paisa y misticismo.` 
+                        text: `Eres Tarod, oráculo de Medellín. ${usuario} pregunta: "${pregunta}". Carta: "${cartaNombre}" (${cartaSignificado}). Responde en 20 palabras, místico y muy paisa.` 
                     }]
                 }]
             })
@@ -52,24 +56,24 @@ async function consultarIA(pregunta, usuario, cartaNombre, cartaSignificado) {
 
         const data = await response.json();
 
-        // Si este modelo tampoco responde, intentamos el flash con el nombre largo
-        if (data.error) {
-            console.error("LOG DE ERROR:", data.error.message);
-            throw new Error(data.error.message);
-        }
-
         if (data.candidates && data.candidates[0].content.parts[0].text) {
             return data.candidates[0].content.parts[0].text.trim();
         }
         
-        return "Vea mijo, el universo está haciendo un 'parche' y no me deja ver nada. Intente luego.";
+        throw new Error("Respuesta inválida");
 
     } catch (e) {
-        return `Oiga ${usuario}, con ${cartaNombre} le digo: ${cartaSignificado}. Hágale que pa' luego es tarde.`;
+        console.error("LOG DE ERROR IA:", e.message);
+        // RESPUESTA DE RESPALDO (Failsafe) para que siempre funcione
+        const respuestasPaisa = [
+            `Vea mijo, con ${cartaNombre} le digo: ${cartaSignificado}. ¡Hágale pues con berraquera!`,
+            `Ave María, ${cartaNombre} indica ${cartaSignificado}. Póngase las pilas pues.`,
+            `Oiga pues, ${cartaNombre} es puro ${cartaSignificado}. No se me achante.`
+        ];
+        return respuestasPaisa[Math.floor(Math.random() * respuestasPaisa.length)];
     }
 }
 
-// Corregimos el evento para evitar el warning
 client.once('ready', (c) => {
     console.log(`🚀 Tarod ONLINE | Usuario: ${c.user.tag}`);
 });
@@ -78,7 +82,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('!tarot')) return;
 
     const pregunta = message.content.slice(7).trim();
-    if (!pregunta) return message.reply("Suelte el chisme pues mijo, ¿qué quiere saber?");
+    if (!pregunta) return message.reply("Suelte la duda pues mijo.");
 
     await message.channel.sendTyping();
     const carta = cartasTarot[Math.floor(Math.random() * cartasTarot.length)];
@@ -95,8 +99,9 @@ client.on('messageCreate', async (message) => {
 
 client.login(DISCORD_TOKEN);
 
+// Servidor básico para Render
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200);
-  res.end('Tarod Online');
+  res.end('Tarod Live');
 }).listen(process.env.PORT || 3000);
